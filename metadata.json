@@ -1,0 +1,8 @@
+{
+  "name": "WakeWise AI",
+  "description": "An intelligent alarm clock that uses AI to generate wake-up challenges, analyze sleep streaks, and adjust difficulty dynamically. Features a built-in AI chatbot and image analyzer.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
