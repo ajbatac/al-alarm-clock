@@ -273,7 +273,7 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                     </div>
                 </div>
 
-                {/* Alarm Sound */}
+                {/* Alarm Sound Selection */}
                 <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
                     <label className="text-xs text-slate-400 uppercase font-bold mb-2 flex items-center gap-2 justify-between">
                         <span className="flex items-center gap-2"><Music className="w-3 h-3" /> Sound</span>
@@ -289,13 +289,13 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                                 setNewSound(sound.id);
                                 playSoundPreview(sound.id);
                             }}
-                            className={`py-2 px-3 rounded-lg text-xs font-medium transition-colors text-left flex justify-between items-center ${
+                            className={`py-3 px-3 rounded-lg text-xs font-medium transition-colors text-left flex justify-between items-center ${
                             newSound === sound.id
                                 ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
                                 : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
                             }`}
                         >
-                            {sound.name}
+                            <span>{sound.name}</span>
                             {newSound === sound.id && <Check className="w-3 h-3" />}
                         </button>
                         ))}
@@ -346,18 +346,19 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                 </div>
 
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <button
-                        onClick={() => {
-                            const levels: ('EASY' | 'MEDIUM' | 'HARD')[] = ['EASY', 'MEDIUM', 'HARD'];
-                            const next = levels[(levels.indexOf(alarm.difficulty) + 1) % levels.length];
-                            onUpdateAlarm({ ...alarm, difficulty: next });
-                        }}
-                        className="text-[10px] bg-slate-700/50 px-1.5 py-0.5 rounded text-slate-500 hover:text-cyan-400 hover:bg-slate-700 flex items-center gap-1 whitespace-nowrap transition-colors"
-                        title="Toggle Difficulty"
-                    >
+                    <div className="text-[10px] bg-slate-700/50 px-1.5 py-0.5 rounded text-slate-500 flex items-center gap-1 whitespace-nowrap transition-colors focus-within:text-cyan-400 focus-within:bg-slate-700">
                         <Zap className="w-3 h-3" />
-                        {alarm.difficulty}
-                    </button>
+                        <select
+                            value={alarm.difficulty}
+                            onChange={(e) => onUpdateAlarm({ ...alarm, difficulty: e.target.value as 'EASY' | 'MEDIUM' | 'HARD' })}
+                            className="bg-transparent outline-none cursor-pointer hover:text-cyan-400 appearance-none uppercase font-medium"
+                            title="Select Difficulty"
+                        >
+                            <option value="EASY" className="bg-slate-800 text-slate-300">EASY</option>
+                            <option value="MEDIUM" className="bg-slate-800 text-slate-300">MEDIUM</option>
+                            <option value="HARD" className="bg-slate-800 text-slate-300">HARD</option>
+                        </select>
+                    </div>
 
                     <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 whitespace-nowrap transition-colors ${
                         alarm.snoozeEnabled
