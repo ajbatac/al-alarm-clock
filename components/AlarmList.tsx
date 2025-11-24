@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Alarm } from '../types';
-import { Plus, Trash2, Bell, BellOff, Timer, TimerOff, PenLine, Music, Check, Zap, Volume2, AlertTriangle, Copy } from 'lucide-react';
+import { Plus, Trash2, Bell, BellOff, Timer, TimerOff, PenLine, Music, Check, Zap, Volume2, AlertTriangle, Copy, Volume1, VolumeX, RotateCcw, CalendarDays } from 'lucide-react';
 import { DAYS_OF_WEEK, ALARM_SOUNDS } from '../constants';
 
 interface AlarmListProps {
@@ -11,86 +11,94 @@ interface AlarmListProps {
   onUpdateAlarm: (alarm: Alarm) => void;
 }
 
+const EditableAlarmLabel = ({ value, onSave }: { value: string, onSave: (val: string) => void }) => {
+  const [localValue, setLocalValue] = useState(value);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleBlur = () => {
+    if (localValue !== value) {
+      onSave(localValue);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+    }
+  };
+
+  return (
+    <div className="relative flex-1 min-w-[100px]">
+      <input
+        type="text"
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        className="w-full bg-transparent border-b border-transparent hover:border-slate-600 focus:border-cyan-500 outline-none text-base font-medium text-slate-400 focus:text-white transition-all p-0 pb-0.5"
+        placeholder="Label"
+      />
+      <PenLine className="w-3 h-3 text-slate-600 absolute right-0 bottom-2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+    </div>
+  );
+};
+
 const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm, onDeleteAlarm, onUpdateAlarm }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [newTime, setNewTime] = useState('07:00');
   const [newLabel, setNewLabel] = useState('Morning Routine');
   const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Mon-Fri default
+  const [newSnoozeEnabled, setNewSnoozeEnabled] = useState(true);
   const [newSnoozeDuration, setNewSnoozeDuration] = useState<number>(5);
   const [newSound, setNewSound] = useState<string>(ALARM_SOUNDS[0].id);
   const [newDifficulty, setNewDifficulty] = useState<'EASY' | 'MEDIUM' | 'HARD'>('MEDIUM');
+  const [newVolume, setNewVolume] = useState<number>(0.8);
   
   // State for delete confirmation
   const [deletingAlarmId, setDeletingAlarmId] = useState<string | null>(null);
 
-  // Audio Context Ref for Previews
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  // Audio Ref for Previews
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playSoundPreview = (soundId: string) => {
-    try {
-        if (!audioCtxRef.current) {
-            audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        }
-        const ctx = audioCtxRef.current;
-        if (ctx.state === 'suspended') {
-            ctx.resume();
-        }
+    // Stop existing audio
+    if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+    }
 
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
+    const sound = ALARM_SOUNDS.find(s => s.id === soundId);
+    if (sound && sound.url) {
+        const audio = new Audio(sound.url);
+        audio.volume = newVolume;
+        audio.play().catch(e => console.error("Preview playback failed:", e));
+        audioRef.current = audio;
+    }
+  };
 
-        const now = ctx.currentTime;
-        
-        // Configure sound based on ID to simulate different tones
-        switch (soundId) {
-            case 'birds':
-                // Chirping-like sound
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(2000, now);
-                osc.frequency.linearRampToValueAtTime(3000, now + 0.1);
-                osc.frequency.linearRampToValueAtTime(2000, now + 0.2);
-                osc.frequency.linearRampToValueAtTime(3000, now + 0.3);
-                gain.gain.setValueAtTime(0.05, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-                osc.start(now);
-                osc.stop(now + 0.5);
-                break;
-            case 'energetic':
-                // Sawtooth rising
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(440, now);
-                osc.frequency.linearRampToValueAtTime(880, now + 0.2);
-                gain.gain.setValueAtTime(0.05, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-                osc.start(now);
-                osc.stop(now + 0.5);
-                break;
-            case 'gentle':
-                // Soft triangle wave
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(330, now); // E4
-                osc.frequency.setValueAtTime(392, now + 0.3); // G4
-                gain.gain.setValueAtTime(0, now);
-                gain.gain.linearRampToValueAtTime(0.1, now + 0.1);
-                gain.gain.linearRampToValueAtTime(0, now + 1.0);
-                osc.start(now);
-                osc.stop(now + 1.0);
-                break;
-            case 'classic':
-            default:
-                // Standard Beep
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(800, now);
-                gain.gain.setValueAtTime(0.05, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-                osc.start(now);
-                osc.stop(now + 0.2);
-                break;
-        }
-    } catch (e) {
-        console.error("Audio preview failed", e);
+  const getSoundColor = (soundId: string) => {
+    switch (soundId) {
+      case 'birds': return 'bg-green-400';
+      case 'energetic': return 'bg-yellow-400';
+      case 'gentle': return 'bg-blue-400';
+      case 'classic': default: return 'bg-red-400';
+    }
+  };
+
+  const resetForm = () => {
+    setNewTime('07:00');
+    setNewLabel('Morning Routine');
+    setSelectedDays([1, 2, 3, 4, 5]);
+    setNewSnoozeEnabled(true);
+    setNewSnoozeDuration(5);
+    setNewSound(ALARM_SOUNDS[0].id);
+    setNewDifficulty('MEDIUM');
+    setNewVolume(0.8);
+    if (audioRef.current) {
+        audioRef.current.pause();
     }
   };
 
@@ -102,19 +110,14 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
       label: newLabel,
       isActive: true,
       difficulty: newDifficulty,
-      snoozeEnabled: true,
+      snoozeEnabled: newSnoozeEnabled,
       snoozeDuration: newSnoozeDuration,
       sound: newSound,
+      volume: newVolume,
     };
     onAddAlarm(newAlarm);
     setIsCreating(false);
-    // Reset form defaults
-    setNewTime('07:00');
-    setNewLabel('Morning Routine');
-    setSelectedDays([1, 2, 3, 4, 5]);
-    setNewSnoozeDuration(5);
-    setNewSound(ALARM_SOUNDS[0].id);
-    setNewDifficulty('MEDIUM');
+    resetForm();
   };
 
   const toggleDay = (dayIndex: number) => {
@@ -195,7 +198,16 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
       {/* Create Alarm Form */}
       {isCreating && (
         <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 animate-fade-in">
-          <h3 className="text-white font-semibold mb-4">New Alarm</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-white font-semibold">New Alarm</h3>
+            <button 
+                onClick={resetForm}
+                className="text-xs text-slate-400 hover:text-cyan-400 flex items-center gap-1 transition-colors"
+                title="Reset to defaults"
+            >
+                <RotateCcw className="w-3 h-3" /> Reset
+            </button>
+          </div>
           <div className="space-y-4">
             <input 
               type="time" 
@@ -212,20 +224,50 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
             />
             
             {/* Days Selection */}
-            <div className="flex justify-between gap-1">
-              {DAYS_OF_WEEK.map((day, idx) => (
-                <button
-                  key={day}
-                  onClick={() => toggleDay(idx)}
-                  className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-colors ${
-                    selectedDays.includes(idx) 
-                      ? 'bg-cyan-500 text-slate-900' 
-                      : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
-                  }`}
-                >
-                  {day[0]}
-                </button>
-              ))}
+            <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                <div className="flex justify-between items-center mb-3">
+                    <label className="text-xs text-slate-400 uppercase font-bold flex items-center gap-2">
+                        <CalendarDays className="w-3 h-3" /> Repeat
+                    </label>
+                    <div className="flex gap-1">
+                        <button 
+                            type="button"
+                            onClick={() => setSelectedDays([1, 2, 3, 4, 5])} 
+                            className="text-[10px] px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-slate-400 hover:text-white rounded transition-colors"
+                        >
+                            Weekdays
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => setSelectedDays([0, 6])} 
+                            className="text-[10px] px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-slate-400 hover:text-white rounded transition-colors"
+                        >
+                            Weekends
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => setSelectedDays([0, 1, 2, 3, 4, 5, 6])} 
+                            className="text-[10px] px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-slate-400 hover:text-white rounded transition-colors"
+                        >
+                            Daily
+                        </button>
+                    </div>
+                </div>
+                <div className="flex justify-between gap-1">
+                    {DAYS_OF_WEEK.map((day, idx) => (
+                    <button
+                        key={day}
+                        onClick={() => toggleDay(idx)}
+                        className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-colors ${
+                        selectedDays.includes(idx) 
+                            ? 'bg-cyan-500 text-slate-900 shadow-lg shadow-cyan-500/20' 
+                            : 'bg-slate-800 text-slate-500 border border-slate-700 hover:bg-slate-700 hover:text-slate-300'
+                        }`}
+                    >
+                        {day[0]}
+                    </button>
+                    ))}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4">
@@ -251,34 +293,63 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                     </div>
                 </div>
 
-                {/* Snooze Duration */}
+                {/* Snooze Config */}
                 <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
-                    <label className="text-xs text-slate-400 uppercase font-bold mb-2 flex items-center gap-2">
-                        <Timer className="w-3 h-3" /> Snooze Duration
-                    </label>
-                    <div className="flex gap-2">
-                        {[5, 10, 15].map(mins => (
+                    <div className="flex justify-between items-center mb-2">
+                        <label className="text-xs text-slate-400 uppercase font-bold flex items-center gap-2">
+                            {newSnoozeEnabled ? <Timer className="w-3 h-3" /> : <TimerOff className="w-3 h-3" />} Snooze
+                        </label>
                         <button
-                            key={mins}
-                            onClick={() => setNewSnoozeDuration(mins)}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            newSnoozeDuration === mins
-                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
-                                : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
-                            }`}
+                            onClick={() => setNewSnoozeEnabled(!newSnoozeEnabled)}
+                            className={`w-10 h-5 rounded-full relative transition-colors ${newSnoozeEnabled ? 'bg-cyan-500' : 'bg-slate-600'}`}
                         >
-                            {mins}m
+                            <span className={`absolute top-0.5 h-4 w-4 bg-white rounded-full transition-all shadow-sm ${newSnoozeEnabled ? 'left-[22px]' : 'left-0.5'}`} />
                         </button>
-                        ))}
                     </div>
+                    {newSnoozeEnabled && (
+                      <div className="flex gap-2">
+                          {[5, 10, 15].map(mins => (
+                          <button
+                              key={mins}
+                              onClick={() => setNewSnoozeDuration(mins)}
+                              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              newSnoozeDuration === mins
+                                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
+                                  : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                              }`}
+                          >
+                              {mins}m
+                          </button>
+                          ))}
+                      </div>
+                    )}
                 </div>
 
                 {/* Alarm Sound Selection */}
                 <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
                     <label className="text-xs text-slate-400 uppercase font-bold mb-2 flex items-center gap-2 justify-between">
                         <span className="flex items-center gap-2"><Music className="w-3 h-3" /> Sound</span>
-                        <span className="flex items-center gap-1 text-[10px] text-slate-500 font-normal"><Volume2 className="w-3 h-3" /> Hover to preview</span>
+                        <span className="flex items-center gap-1 text-[10px] text-slate-500 font-normal"><Volume2 className="w-3 h-3" /> Hover/Click to preview</span>
                     </label>
+                    
+                    {/* Volume Slider */}
+                    <div className="flex items-center gap-2 mb-3 px-1">
+                        {newVolume === 0 ? <VolumeX className="w-4 h-4 text-slate-500"/> : <Volume1 className="w-4 h-4 text-cyan-400"/>}
+                        <input 
+                            type="range" 
+                            min="0" 
+                            max="1" 
+                            step="0.1" 
+                            value={newVolume} 
+                            onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                setNewVolume(val);
+                                if (audioRef.current) audioRef.current.volume = val;
+                            }}
+                            className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                        />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-2">
                         {ALARM_SOUNDS.map(sound => (
                         <button
@@ -295,7 +366,10 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                                 : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
                             }`}
                         >
-                            <span>{sound.name}</span>
+                            <span className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${getSoundColor(sound.id)}`}></span>
+                                {sound.name}
+                            </span>
                             {newSound === sound.id && <Check className="w-3 h-3" />}
                         </button>
                         ))}
@@ -305,7 +379,10 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
 
             <div className="flex gap-3 mt-4">
               <button 
-                onClick={() => setIsCreating(false)} 
+                onClick={() => {
+                    setIsCreating(false);
+                    if (audioRef.current) audioRef.current.pause();
+                }} 
                 className="flex-1 py-2 rounded-lg bg-slate-700 text-slate-300 font-medium"
               >
                 Cancel
@@ -333,16 +410,10 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                   <div className="text-3xl font-bold text-white tracking-tight">
                     {alarm.time}
                   </div>
-                  <div className="relative flex-1 min-w-[100px]">
-                      <input
-                          type="text"
-                          value={alarm.label}
-                          onChange={(e) => onUpdateAlarm({ ...alarm, label: e.target.value })}
-                          className="w-full bg-transparent border-b border-transparent hover:border-slate-600 focus:border-cyan-500 outline-none text-base font-medium text-slate-400 focus:text-white transition-all p-0 pb-0.5"
-                          placeholder="Label"
-                      />
-                      <PenLine className="w-3 h-3 text-slate-600 absolute right-0 bottom-2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
+                  <EditableAlarmLabel 
+                    value={alarm.label} 
+                    onSave={(val) => onUpdateAlarm({ ...alarm, label: val })} 
+                  />
                 </div>
 
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -396,6 +467,7 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                     
                     <div className="text-[10px] bg-slate-700/50 px-1.5 py-0.5 rounded text-slate-500 flex items-center gap-1 whitespace-nowrap">
                         <Music className="w-3 h-3" />
+                        <span className={`w-1.5 h-1.5 rounded-full ${getSoundColor(alarm.sound)}`}></span>
                         {ALARM_SOUNDS.find(s => s.id === alarm.sound)?.name || 'Default'}
                     </div>
                 </div>

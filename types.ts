@@ -8,6 +8,7 @@ export interface Alarm {
   snoozeEnabled: boolean;
   snoozeDuration?: number; // Duration in minutes
   sound: string;
+  volume: number; // 0 to 1
 }
 
 export interface UserStats {

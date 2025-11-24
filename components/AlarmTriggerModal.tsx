@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Alarm, Challenge } from '../types';
+import { ALARM_SOUNDS } from '../constants';
 import { geminiService } from '../services/geminiService';
 import { AlarmClock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
@@ -14,6 +15,7 @@ const AlarmTriggerModal: React.FC<AlarmTriggerModalProps> = ({ alarm, onDismiss,
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     // Fetch challenge when modal mounts
@@ -24,8 +26,25 @@ const AlarmTriggerModal: React.FC<AlarmTriggerModalProps> = ({ alarm, onDismiss,
     };
     fetchChallenge();
     
-    // Play sound loop? (In a real app. Here visual only)
-  }, [alarm.difficulty]);
+    // Play sound loop
+    const soundData = ALARM_SOUNDS.find(s => s.id === alarm.sound);
+    if (soundData && soundData.url) {
+        const audio = new Audio(soundData.url);
+        audio.loop = true;
+        audio.volume = alarm.volume ?? 0.8;
+        audio.play().catch(e => console.error("Alarm playback failed:", e));
+        audioRef.current = audio;
+    }
+
+    // Cleanup audio on unmount
+    return () => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            audioRef.current = null;
+        }
+    };
+  }, [alarm.difficulty, alarm.sound, alarm.volume]);
 
   const handleOptionSelect = (option: string) => {
     if (!challenge || feedback === 'correct') return;
@@ -33,6 +52,10 @@ const AlarmTriggerModal: React.FC<AlarmTriggerModalProps> = ({ alarm, onDismiss,
     setSelectedOption(option);
     if (option === challenge.answer) {
       setFeedback('correct');
+      // Stop audio immediately on success
+      if (audioRef.current) {
+          audioRef.current.pause();
+      }
       setTimeout(() => {
         onDismiss(true);
       }, 1500);
@@ -44,6 +67,13 @@ const AlarmTriggerModal: React.FC<AlarmTriggerModalProps> = ({ alarm, onDismiss,
         setSelectedOption(null);
       }, 1000);
     }
+  };
+  
+  const handleSnoozeClick = () => {
+      if (audioRef.current) {
+          audioRef.current.pause();
+      }
+      onSnooze();
   };
 
   return (
@@ -110,7 +140,7 @@ const AlarmTriggerModal: React.FC<AlarmTriggerModalProps> = ({ alarm, onDismiss,
         {/* Snooze Button */}
         {alarm.snoozeEnabled && feedback !== 'correct' && (
           <button 
-            onClick={onSnooze}
+            onClick={handleSnoozeClick}
             className="mt-8 text-slate-500 font-semibold hover:text-white transition-colors px-6 py-2 rounded-full hover:bg-white/5"
           >
             Snooze ({alarm.snoozeDuration || 5} min)
