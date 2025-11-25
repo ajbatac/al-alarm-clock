@@ -401,13 +401,13 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
       {/* Alarm List */}
       <div className="space-y-4">
         {alarms.map(alarm => (
-          <div key={alarm.id} className={`relative group bg-slate-800 p-5 rounded-xl border transition-all ${alarm.isActive ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/5' : 'border-slate-700 opacity-75'}`}>
+          <div key={alarm.id} className={`relative group p-5 rounded-xl border transition-all duration-300 ${alarm.isActive ? 'bg-slate-800 border-cyan-500/50 shadow-lg shadow-cyan-500/10' : 'bg-slate-900/50 border-slate-800 opacity-60'}`}>
             <div className="flex justify-between items-start">
               <div className="flex-1 mr-4">
                 
                 {/* Time and Label Row */}
                 <div className="flex items-baseline gap-3 mb-2">
-                  <div className="text-3xl font-bold text-white tracking-tight">
+                  <div className={`text-3xl font-bold tracking-tight transition-colors ${alarm.isActive ? 'text-white' : 'text-slate-400'}`}>
                     {alarm.time}
                   </div>
                   <EditableAlarmLabel 
@@ -417,13 +417,14 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                 </div>
 
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <div className="text-[10px] bg-slate-700/50 px-1.5 py-0.5 rounded text-slate-500 flex items-center gap-1 whitespace-nowrap transition-colors focus-within:text-cyan-400 focus-within:bg-slate-700">
+                    <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 whitespace-nowrap transition-colors focus-within:bg-slate-700 ${alarm.isActive ? 'bg-slate-700/50 text-slate-500 focus-within:text-cyan-400' : 'bg-slate-800 text-slate-600'}`}>
                         <Zap className="w-3 h-3" />
                         <select
                             value={alarm.difficulty}
                             onChange={(e) => onUpdateAlarm({ ...alarm, difficulty: e.target.value as 'EASY' | 'MEDIUM' | 'HARD' })}
                             className="bg-transparent outline-none cursor-pointer hover:text-cyan-400 appearance-none uppercase font-medium"
                             title="Select Difficulty"
+                            disabled={!alarm.isActive}
                         >
                             <option value="EASY" className="bg-slate-800 text-slate-300">EASY</option>
                             <option value="MEDIUM" className="bg-slate-800 text-slate-300">MEDIUM</option>
@@ -432,7 +433,7 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                     </div>
 
                     <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 whitespace-nowrap transition-colors ${
-                        alarm.snoozeEnabled
+                        alarm.snoozeEnabled && alarm.isActive
                             ? 'bg-slate-700/50 text-slate-500'
                             : 'bg-slate-800 border border-slate-700 text-slate-600'
                     }`}>
@@ -440,6 +441,7 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                             onClick={() => onUpdateAlarm({ ...alarm, snoozeEnabled: !alarm.snoozeEnabled })}
                             className="hover:text-cyan-400 focus:outline-none"
                             title={alarm.snoozeEnabled ? "Disable Snooze" : "Enable Snooze"}
+                            disabled={!alarm.isActive}
                         >
                             {alarm.snoozeEnabled ? <Timer className="w-3 h-3" /> : <TimerOff className="w-3 h-3" />}
                         </button>
@@ -450,6 +452,7 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                                 onChange={(e) => onUpdateAlarm({ ...alarm, snoozeDuration: parseInt(e.target.value) })}
                                 className="bg-transparent outline-none cursor-pointer hover:text-cyan-400 appearance-none text-center min-w-[24px]"
                                 title="Snooze Duration"
+                                disabled={!alarm.isActive}
                             >
                                 <option value={5} className="bg-slate-800 text-slate-300">5m</option>
                                 <option value={10} className="bg-slate-800 text-slate-300">10m</option>
@@ -459,13 +462,14 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                             <button 
                                 onClick={() => onUpdateAlarm({ ...alarm, snoozeEnabled: true })}
                                 className="hover:text-slate-400"
+                                disabled={!alarm.isActive}
                             >
                                 Off
                             </button>
                         )}
                     </div>
                     
-                    <div className="text-[10px] bg-slate-700/50 px-1.5 py-0.5 rounded text-slate-500 flex items-center gap-1 whitespace-nowrap">
+                    <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 whitespace-nowrap ${alarm.isActive ? 'bg-slate-700/50 text-slate-500' : 'bg-slate-800 text-slate-600'}`}>
                         <Music className="w-3 h-3" />
                         <span className={`w-1.5 h-1.5 rounded-full ${getSoundColor(alarm.sound)}`}></span>
                         {ALARM_SOUNDS.find(s => s.id === alarm.sound)?.name || 'Default'}
@@ -473,7 +477,7 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                 </div>
                 <div className="flex gap-1">
                   {DAYS_OF_WEEK.map((day, idx) => (
-                    <span key={idx} className={`text-[10px] uppercase font-bold ${alarm.days.includes(idx) ? 'text-cyan-400' : 'text-slate-600'}`}>
+                    <span key={idx} className={`text-[10px] uppercase font-bold ${alarm.days.includes(idx) ? (alarm.isActive ? 'text-cyan-400' : 'text-cyan-900') : 'text-slate-700'}`}>
                       {day}
                     </span>
                   ))}
@@ -483,7 +487,7 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
               <div className="flex flex-col items-end gap-4">
                 <button 
                     onClick={() => onToggleAlarm(alarm.id)}
-                    className={`p-2 rounded-full transition-colors ${alarm.isActive ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-700 text-slate-500'}`}
+                    className={`p-2 rounded-full transition-colors ${alarm.isActive ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-700 text-slate-500 hover:bg-slate-600 hover:text-slate-400'}`}
                 >
                     {alarm.isActive ? <Bell className="w-6 h-6" /> : <BellOff className="w-6 h-6" />}
                 </button>
