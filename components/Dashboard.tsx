@@ -2,7 +2,7 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import { UserStats } from '../types';
-import { Trophy, Flame, Clock, TrendingUp, Zap, Target, Sun } from 'lucide-react';
+import { Trophy, Flame, Clock, TrendingUp, Zap, Target, Sun, CheckCircle } from 'lucide-react';
 
 interface DashboardProps {
   stats: UserStats;
@@ -24,6 +24,31 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
       rate: Math.round((cumulativeSuccess / (index + 1)) * 100),
     };
   }).slice(-10); // Show last 10 events for readability
+
+  // Prepare data for Daily Success Rate (Last 7 Days)
+  const last7DaysSuccessData = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i)); // 6 days ago to today
+    const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+    
+    // Filter events for this specific day (local time comparison)
+    const dayEvents = stats.wakeUpHistory.filter(e => {
+        const eDate = new Date(e.date);
+        return eDate.getDate() === d.getDate() &&
+               eDate.getMonth() === d.getMonth() &&
+               eDate.getFullYear() === d.getFullYear();
+    });
+
+    const successCount = dayEvents.filter(e => e.success).length;
+    const total = dayEvents.length;
+    const rate = total > 0 ? Math.round((successCount / total) * 100) : 0;
+
+    return {
+        day: dayLabel,
+        rate: rate,
+        attempts: total
+    };
+  });
 
   // Calculate Additional Metrics
   const totalWakeUps = stats.wakeUpHistory.length;
@@ -171,6 +196,30 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
             )}
             </div>
         </div>
+
+        {/* Daily Success Rate (Last 7 Days) */}
+        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-emerald-400" />
+                Daily Success (Last 7 Days)
+            </h3>
+            <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={last7DaysSuccessData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                    <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+                    <Tooltip 
+                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
+                    itemStyle={{ color: '#34d399' }}
+                    cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                    formatter={(value: number, name: string, props: any) => [`${value}%`, `Success Rate (${props.payload.attempts} attempts)`]}
+                    />
+                    <Bar dataKey="rate" fill="#34d399" radius={[4, 4, 0, 0]} />
+                </BarChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
       
       </div>
 
@@ -194,4 +243,3 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
 };
 
 export default Dashboard;
-    

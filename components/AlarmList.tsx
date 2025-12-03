@@ -471,8 +471,25 @@ const AlarmList: React.FC<AlarmListProps> = ({ alarms, onAddAlarm, onToggleAlarm
                     
                     <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 whitespace-nowrap ${alarm.isActive ? 'bg-slate-700/50 text-slate-500' : 'bg-slate-800 text-slate-600'}`}>
                         <Music className="w-3 h-3" />
-                        <span className={`w-1.5 h-1.5 rounded-full ${getSoundColor(alarm.sound)}`}></span>
+                        <span className={`w-2 h-2 rounded-full shadow-sm ${getSoundColor(alarm.sound)}`}></span>
                         {ALARM_SOUNDS.find(s => s.id === alarm.sound)?.name || 'Default'}
+                    </div>
+
+                    {/* Volume Slider for Existing Alarm */}
+                    <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-2 transition-colors ${alarm.isActive ? 'bg-slate-700/50 text-slate-500' : 'bg-slate-800 text-slate-600'}`}>
+                        {alarm.volume === 0 ? <VolumeX className="w-3 h-3" /> : <Volume1 className="w-3 h-3" />}
+                         <input 
+                            type="range" 
+                            min="0" 
+                            max="1" 
+                            step="0.1" 
+                            value={alarm.volume ?? 0.8} 
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => onUpdateAlarm({ ...alarm, volume: parseFloat(e.target.value) })}
+                            className="w-12 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                            disabled={!alarm.isActive}
+                            title={`Volume: ${Math.round((alarm.volume ?? 0.8) * 100)}%`}
+                        />
                     </div>
                 </div>
                 <div className="flex gap-1">
